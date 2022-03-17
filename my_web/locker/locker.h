@@ -1,7 +1,7 @@
 /*
  * @Date: 2022-03-10 03:26:04
  * @LastEditors: mgpdian
- * @LastEditTime: 2022-03-11 07:15:20
+ * @LastEditTime: 2022-03-14 01:29:14
  * @FilePath: /data/my_web/locker/locker.h
  */
 //线程同步类
@@ -84,6 +84,12 @@ public:
         return pthread_mutex_unlock( &m_mutex) == 0;
     } 
 
+    //获取当前锁
+    pthread_mutex_t *get()
+    {
+        return &m_mutex;
+    }
+
 private:
     pthread_mutex_t m_mutex;
 
@@ -97,13 +103,13 @@ public:
     //初始化条件变量
     my_cond()
     {
-        if( pthread_mutex_init( &m_mutex, NULL) != 0)
-        {
-            throw std::exception();
-        }
+        //if( pthread_mutex_init( &m_mutex, NULL) != 0)
+        //{
+        //    throw std::exception();
+        //}
         if( pthread_cond_init( &m_cond, NULL) != 0)
         {
-            pthread_mutex_destroy(&m_mutex);
+            //pthread_mutex_destroy(&m_mutex);
             throw std::exception();
         }
     }
@@ -111,21 +117,36 @@ public:
     ~my_cond()
     {
         pthread_cond_destroy( &m_cond);
-        pthread_mutex_destroy( &m_mutex);
+        //pthread_mutex_destroy( &m_mutex);
 
     }
     //等待条件变量
-    bool wait()
+    bool wait(pthread_mutex_t *m_mutex)
     {
         int ret = 0;
         //上互斥锁避免出问题
-        pthread_mutex_lock( &m_mutex);
+        //pthread_mutex_lock( &m_mutex);
         //等待条件变量
         //失败则引起线程阻塞并解锁
         //成功则解除线程阻塞并加锁
-        ret = pthread_cond_wait( &m_cond, &m_mutex);
-        pthread_mutex_unlock( &m_mutex);
+        ret = pthread_cond_wait( &m_cond, m_mutex);
+        //pthread_mutex_unlock( &m_mutex);
         return ret == 0;
+    }
+    //在限定的时间内解锁 接收
+    bool timewait(pthread_mutex_t *m_mutex, struct timespec t)
+    {
+        int ret = 0;
+        //c++11开始不用加锁
+        //pthread_mutex_lock(&m_mutex);
+        ret = pthread_cond_timedwait(&m_cond, m_mutex, &t);
+        // //解锁->等待->加锁
+        
+        //当在指定时间内有信号传过来时，
+        //pthread_cond_timedwait()返回0，否则返回一个非0数
+        //pthread_mutex_unlock(&m_mutex);
+        return ret == 0;
+
     }
 
     //唤醒等待条件变量的进程
@@ -133,8 +154,15 @@ public:
     {
         return pthread_cond_signal( &m_cond) == 0;
     }
+
+    //唤醒所有等待条件变量的进程
+    bool broadcast()
+    {
+        return pthread_cond_broadcast(&m_cond) == 0;
+    }
+    
 private:
-    pthread_mutex_t m_mutex;
+    //pthread_mutex_t m_mutex;
     pthread_cond_t m_cond;
 };
 
