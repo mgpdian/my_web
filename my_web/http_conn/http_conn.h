@@ -1,7 +1,7 @@
 /*
  * @Date: 2022-03-10 08:38:11
  * @LastEditors: mgpdian
- * @LastEditTime: 2022-03-11 03:52:16
+ * @LastEditTime: 2022-03-18 08:33:38
  * @FilePath: /data/my_web/http_conn/http_conn.h
  */
 //http 对http行进行处理
@@ -17,7 +17,8 @@
 #include <arpa/inet.h>
 #include <assert.h>
 #include <sys/stat.h>
-#include <string.h>
+
+
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,6 +28,14 @@
 #include <sys/wait.h>
 #include <sys/uio.h>
 #include <map>
+
+#include "../log/log.h"
+//#include "../timer/lis_timer.h"
+#include "../timer/min_heap.h"
+#include "../strdecode/strdecode.h"
+#include "../sql_conn/sql_conn.h"
+#include "../locker/locker.h"
+#include "../LRU/LRU.h"
 
 //http状态分析类
 class my_http_conn
@@ -91,7 +100,7 @@ public:
 	
 public:    
     //初始化新接收的连接
-    void init(int sockfd, const sockaddr_in& addr);
+    void init(int sockfd, const sockaddr_in& addr, int trig_model, int close_log);
 	//关闭连接
     void close_conn(bool real_close = true);
 	//处理客户请求()
@@ -101,6 +110,15 @@ public:
 	//写操作
     bool write();
 
+
+    //数据库连接
+    void mysql_reslut(connection_pool*); //获取数据库结果
+
+    int timer_flag; //是否超时
+    int improv; //当前任务是否已经完成
+                //若完成且不超时 则为完成
+                //若完成且超时 则退出
+                //简而言之 improv是切换状态的方法
 private:
 	//初始化连接
     void init();
@@ -134,6 +152,8 @@ private:
 
     bool add_status_line(int status, const char* title);
     bool add_headers(int content_length);
+    //发送文件类型
+    bool add_file_type(const char* filetype);
     bool add_content_length(int content_length);
     //发送是否保持长连接
     bool add_linger();
@@ -143,6 +163,9 @@ private:
 
     //关闭mmap
     void unmap();
+
+
+    
 public:
 	//静态变量
 
@@ -154,8 +177,11 @@ public:
 
 	//统计用户数量
     static int m_client_number;
-	
+	//数据库连接
+    MYSQL *mysql;
 
+    //用于reactor模式
+    int m_state; // 读为0 写为1 
 private:
 
 	//该HTTP连接的socket和对方的socket地址
@@ -205,8 +231,9 @@ private:
 
 	//客户请求的目标文件的文件名
     char* m_url;
-
-
+    //不需要
+    //尝试将m_url转义成中文
+    //char *m_pFile;
 	
 
 	//HTTP请求的消息体长度
@@ -233,6 +260,29 @@ private:
     struct iovec m_iv[2]; //一个是请求行和头  一个是请求的内容
     int m_iv_count;
 
+    int bytes_to_send;
+    int bytes_have_send;
+
+    //连接数据库
+    //connection_pool*  不需要整个数据库 只需要里面的一个连接
+
+    int m_is_post;  //是否为POST请求
+    char *m_resquest_data;//返回的数据
+
+    map<string, string> m_users;
+    char sql_user[100];  //数据库用户名
+    char sql_passwd[100];//数据库密码
+    char sql_name[100];//数据库名字?
+
+    //互斥锁
+    my_locker m_locker;
+
+
+    //日志设置
+    int m_close_log;
+
+    //模式设置 ET LT
+    int m_trig_model;
 };
 
 
