@@ -45,10 +45,10 @@ class time_heap
 {
 public:
     time_heap(){
-        time_heap(0);
+        time_heap(64);
     }
     //初始化一个大小cap的空堆
-    time_heap(int cap);  //sort_timer_lst(); 
+    time_heap(int cap = 64);  //sort_timer_lst(); 
 
     //用已有的数组来初始化堆
     time_heap(heap_timer** init_array, int size, int capacity);

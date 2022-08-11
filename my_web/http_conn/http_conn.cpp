@@ -8,7 +8,9 @@
 //解析http类 http_conn
 
 #include "http_conn.h"
+#include "../log/new_log.h"
 
+static Logger::ptr g_logger = MY_LOG_NAME("system");
 //定义HTTP响应的一些状态信息
 const char *ok_200_title = "OK";
 const char *error_400_title = "Bad Request";
@@ -21,10 +23,10 @@ const char *error_500_title = "Internal Error";
 const char *error_500_form = "There was an unusual problem serving the requested file.\n";
 
 //网站根目录
-const char *doc_root = "/data/my_web/html";
+const char *doc_root = "/home/mgpdian/my_web/html";
 
-my_locker m_locker;
-map<string, string> users;
+
+std::map<std::string, std::string> users;
 //LRU缓存
 static LRUCache lru(100);
 //数据库连接
@@ -40,37 +42,40 @@ void my_http_conn::mysql_reslut(connection_pool *connPool) //获取数据库结�
     //mysql_set_character_set(mysql,"utf8"); 
     //mysql_query(mysql, "SET NAMES GB2312");
     //通过sql语句搜索username和passwd数据
-    printf("在数据库的user中搜索username和passwd的数据\n");
+    //printf("在数据库的user中搜索username和passwd的数据\n");
     // mysql_query 数据库搜索语句
     if (mysql_query(mysql, "SELECT username,passwd FROM user"))
     {
-        LOG_ERROR("SELECT error:%s\n", mysql_errno(mysql));
+        //LOG_ERROR("SELECT error:%s\n", mysql_errno(mysql));
+        MY_LOG_ERROR(g_logger) << "SELECT error: " << mysql_errno(mysql);
     }
 
     //从表中检索完整的结果集
-    printf("从表中检索完整的结果集\n");
+    //printf("从表中检索完整的结果集\n");
     // mysql_store_result 获取完整的结果集
     MYSQL_RES *result = mysql_store_result(mysql);
 
-    printf("返回结果集中的列数\n");
+    //printf("返回结果集中的列数\n");
     // mysql_num_fields 返回的结果集的列数
-    if (result == NULL)
-        printf("result is empty\n");
+    if (result == NULL){
+        MY_LOG_ERROR(g_logger) << "result is empty";
+    }
+        //printf("result is empty\n");
     int num_filelds = mysql_num_fields(result);
 
-    printf("返回所有字段结构的数组\n");
+    //printf("返回所有字段结构的数组\n");
     // mysql_fetch_fields 返回所有字段结构的数组
     MYSQL_FIELD *fields = mysql_fetch_field(result);
 
     //从结果集中获得下一行
-    printf("从结果集中获取下一行,将对应的用户名和密码,存入map中\n");
+    //printf("从结果集中获取下一行,将对应的用户名和密码,存入map中\n");
     while (MYSQL_ROW row = mysql_fetch_row(result))
     {
         string temp1 = row[0];
         string temp2 = row[1];
 
        
-        cout << temp1 << endl << temp2<< endl;
+       // cout << temp1 << endl << temp2<< endl;
        // printf("%s %s \n", m , m1);
        users[temp1] = temp2;
     }
@@ -154,8 +159,8 @@ void my_http_conn::init(int sockfd, const sockaddr_in &addr, int trig_model, int
     inet_ntop(AF_INET, &m_address.sin_addr, _ip, sizeof(_ip));
     //将传输来的用户ip转换成主机字节序
 
-    LOG_INFO("接入 ip = [%s] fd == [%d]\n", _ip, sockfd);
-
+    //LOG_INFO("接入 ip = [%s] fd == [%d]\n", _ip, sockfd);
+    MY_LOG_INFO(g_logger) << "Access ip = [" << _ip << "] fd == [" << sockfd << "]";
     m_trig_model = trig_model;
     m_close_log = close_log;
 
@@ -166,8 +171,8 @@ void my_http_conn::init(int sockfd, const sockaddr_in &addr, int trig_model, int
     epoll_addfd(m_epollfd, sockfd, true, m_trig_model);
     //用户连接数加一
     ++m_client_number;
-
-    init();
+    
+    init(); 
 }
 //初始化连接
 void my_http_conn::init()
@@ -228,7 +233,8 @@ void my_http_conn::process()
 
     if (!write_ret)
     {
-        printf("process_write fail, fd == [%d] closed\n", m_sockfd);
+        //printf("process_write fail, fd == [%d] closed\n", m_sockfd);
+        MY_LOG_ERROR(g_logger) << "process_write fail, fd == [" << m_sockfd << "] closed";
         close_conn();
     }
     //切换状态
@@ -251,7 +257,8 @@ bool my_http_conn::read()
 
         if (bytes_read <= 0)
         {
-            printf("LT read() EAGAIN\n");
+            //printf("LT read() EAGAIN\n");
+            MY_LOG_ERROR(g_logger) << "LT read() EAGAIN";
             return false;
         }
         
@@ -272,9 +279,16 @@ bool my_http_conn::read()
                 {
                     //在某些套接字的函数操作不能立即完成时 会出现错误码EWOULDBLOOK或者EAGAIN
                     if (errno == EAGAIN)
-                        printf("read() EAGAIN\n");
-                    if (errno == EWOULDBLOCK)
-                        printf("read() EWOULDBLOCK\n");
+                    {
+                        //printf("read() EAGAIN\n");
+                        MY_LOG_INFO(g_logger) << "read() EAGAIN";
+                    }
+                        
+                    if (errno == EWOULDBLOCK){
+                        //printf("read() EWOULDBLOCK\n");
+                        MY_LOG_INFO(g_logger) << "read() EWOULDBLOCK";
+                    }
+                        
                     break;
                 }
                 return false;
@@ -305,8 +319,8 @@ my_http_conn::HTTP_RETURN my_http_conn::process_read()
     {
         text = get_line();
         m_start_line = m_check_idx;
-        printf("got 1 http line: %s\n", text);
-
+        //printf("got 1 http line: %s\n", text);
+        //MY_LOG_INFO(g_logger) << "got 1 http line: " << text;
         switch (m_check_state)
         {
         case CHECK_STATE_LINE:
@@ -431,7 +445,8 @@ my_http_conn::HTTP_RETURN my_http_conn::parse_request_line(char *text)
     //检索字符串 str1 中第一个不在字符串 str2 中出现的字符下标。
     m_version += strspn(m_version, " \t");
 
-    if (strcasecmp(m_version, "HTTP/1.1") != 0)
+    //if (strcasecmp(m_version, "HTTP/1.1") != 0)
+    if (strcasecmp(m_version, "HTTP/1.1") != 0 && strcasecmp(m_version, "HTTP/1.0") != 0)
     {
         return BAD_REQUEST;
     }
@@ -488,7 +503,7 @@ my_http_conn::HTTP_RETURN my_http_conn::parse_headers(char *text)
         {
             m_linger = true;
         }
-        printf("the client want to have a long keep? %d", m_linger);
+       // printf("the client want to have a long keep? %d", m_linger);
     }
     //处理content-length字段
     else if (strncasecmp(text, "Content-Length:", 15) == 0)
@@ -506,7 +521,8 @@ my_http_conn::HTTP_RETURN my_http_conn::parse_headers(char *text)
     }
     else
     {
-        printf("oop ! unknow header %s\n", text);
+        //printf("oop ! unknow header %s\n", text);
+        MY_LOG_ERROR(g_logger) << "oop ! unknow header" << text;
     }
     return NO_REQUEST;
 }
@@ -516,13 +532,13 @@ my_http_conn::HTTP_RETURN my_http_conn::parse_headers(char *text)
 //加入post 需要读取 后面的内容
 my_http_conn::HTTP_RETURN my_http_conn::parse_content(char *text)
 {
-    printf("http后面的请求内容");
+    //printf("http后面的请求内容");
     if (m_read_idx >= (m_content_length + m_check_idx))
     {
-        printf("内容行的内容为：%s\n", text);
+        //printf("内容行的内容为：%s\n", text);
         text[m_content_length] = '\0';
         m_resquest_data = text; //读取剩下的内容行
-        printf("内容行的内容为：%s", m_resquest_data);
+        //printf("内容行的内容为：%s", m_resquest_data);
         return GET_REQUEST;
     }
     return NO_REQUEST;
@@ -559,7 +575,7 @@ my_http_conn::HTTP_RETURN my_http_conn::do_request()
         //???
         char *m_url_real = (char *)malloc(sizeof(char) * 200);
         
-        printf("加载登录界面load\n");
+        //printf("加载登录界面load\n");
         char name[100], password[100];
         int i = 0;
         //读取m_resquest_data中的数据 users 和 password
@@ -569,7 +585,7 @@ my_http_conn::HTTP_RETURN my_http_conn::do_request()
             name[i - 5] = m_resquest_data[i];
         }
         name[i - 5] = '\0';
-        printf("用户账号为:%s\n", name);
+        //printf("用户账号为:%s\n", name);
 
         // password= 长度为9 加上之前的& 长度为10
         int j = 0;
@@ -578,29 +594,29 @@ my_http_conn::HTTP_RETURN my_http_conn::do_request()
             password[j] = m_resquest_data[i];
         }
         password[j] = '\0';
-        printf("用户密码为:%s\n", password);
+        //printf("用户密码为:%s\n", password);
 
-        printf("登录\n");
+        //printf("登录\n");
         //printf("*(p+1) == %c", *(p+ 1));
         if (*(p + 1) == '2')
         {
-            printf("???");
+            //printf("???");
             if (users.find(name) != users.end() && users[name] == password)
             {
-                printf("YES?");
+                //printf("YES?");
                 lru.put(m_address.sin_addr.s_addr, name);
                  strcpy(m_url, "/index.html");
 
             }
             else
             {
-                printf("NO?");
+                //printf("NO?");
                 strcpy(m_url, "/logerror.html");
             }
         }
         else if (*(p + 1) == '3')
         {
-            printf("注册\n");
+            //printf("注册\n");
             //注册的话 需要先查看数据库中是否有重名
             if (users.find(name) == users.end())
             {
@@ -614,28 +630,34 @@ my_http_conn::HTTP_RETURN my_http_conn::do_request()
                 strcat(sql_insert, password);
                 strcat(sql_insert, "')");
 
-                m_locker.lock();
-                printf("语句插入: [%s]\n", sql_insert);
+                int res = 0;
+                //m_locker.lock();
+                {
+                    std::unique_lock<MutexType> lock(the_mutex);
+                    res = mysql_query(mysql, sql_insert);
+                    users.insert(pair<string, string>(name, password));
+                }
+                //printf("语句插入: [%s]\n", sql_insert);
                 //写入数据库
-                int res = mysql_query(mysql, sql_insert);
-                users.insert(pair<string, string>(name, password));
-                printf("插入成功");
-                m_locker.unlock();
+                
+                //printf("插入成功");
+                //m_locker.unlock();
 
                 if (!res)
                 {
-                    printf("注册成功 跳转到登录页面");
+                    //printf("注册成功 跳转到登录页面");
                     strcpy(m_url, "/log.html");
                 }
                 else
                 {
-                    printf("注册失败 数据库读取失败\n");
+                    //printf("注册失败 数据库读取失败\n");
                     strcpy(m_url, "/registerError.html");
                 }
             }
             else
             {
-                printf("注册失败 已经有重名\n");
+                //printf("注册失败 已经有重名\n");
+                MY_LOG_ERROR(g_logger) << "Registration failed. There is already a duplicate name";
                 strcpy(m_url, "/registerError.html");
             }
         }
@@ -819,7 +841,7 @@ bool my_http_conn::write()
         temp = writev(m_sockfd, m_iv, m_iv_count);
         if (temp < 0)
         {
-            printf("temp < 0 errno = %d\n", errno);
+            //printf("temp < 0 errno = %d\n", errno);
             if (errno == EAGAIN)
             {
                 //如果TCP写缓冲没有空闲 则得到下一轮EPOLLOUT事件
@@ -828,7 +850,7 @@ bool my_http_conn::write()
                 epoll_modfd(m_epollfd, m_sockfd, EPOLLOUT, m_trig_model);
                 return true;
             }
-            printf("unmap()\n");
+            //printf("unmap()\n");
             unmap();
             return false;
         }
@@ -838,7 +860,7 @@ bool my_http_conn::write()
 
         //要发送的temp字节数文件
         bytes_to_send -= temp;
-        printf("have: %d  to  %d\n", bytes_have_send, bytes_to_send);
+       // printf("have: %d  to  %d\n", bytes_have_send, bytes_to_send);
         //如果可以发送的字节大于报头 证明报头发送完毕 但文件还未发送完毕
         /*这行代码：因为m_write_idx表示为待发送文件的定位点，m_iv[0]指向m_write_buf，
         所以bytes_have_send（已发送的数据量） - m_write_idx（已发送完的报头中的数据量）
@@ -852,7 +874,7 @@ bool my_http_conn::write()
             m_iv[1].iov_base = m_file_address + (bytes_have_send - m_write_idx);
             m_iv[1].iov_len = bytes_to_send;
             //头部已经完成发送
-            printf("headers overs\n");
+            //printf("headers overs\n");
         }
         //否则继续发送报头 修改m_iv指向写缓冲区的位置以及待发送的长度以便下次接着发
         else
@@ -860,13 +882,13 @@ bool my_http_conn::write()
             m_iv[0].iov_base = m_write_buf + bytes_have_send;
             m_iv[0].iov_len = m_iv[0].iov_len - temp;
             //头部还有剩余
-            printf("headers ever\n");
+            //printf("headers ever\n");
         }
 
         if (bytes_to_send <= 0)
         {
             //发送完毕，恢复默认值以便下次继续传输文件
-            printf("overover\n");
+            //printf("overover\n");
             unmap();
             epoll_modfd(m_epollfd, m_sockfd, EPOLLIN, m_trig_model);
             if (m_linger)

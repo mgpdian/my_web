@@ -12,7 +12,7 @@
 #include <exception>
 #include <pthread.h>
 
-//#include "../log/log.h"
+#include "../log/log.h"
 #include "../locker/locker.h"
 #include "../sql_conn/sql_conn.h"
 //线程池

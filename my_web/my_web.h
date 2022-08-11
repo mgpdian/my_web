@@ -29,17 +29,19 @@
 #include <errno.h>
 #include <iostream>
 
-#include "./locker/locker.h"
-#include "./threadpool/threadpool.h"
+//#include "./locker/locker.h"
+//#include "./threadpool/threadpool.h"
+#include "./threadpool/new_threadpool.h"
 #include "./http_conn/http_conn.h"
 #include "./strdecode/strdecode.h"
 //#include "./timer/lis_timer.h"
 #include "./timer/min_heap.h" //try min_heap
-#include "./log/log.h"
+//#include "./log/log.h"
+//#include "./log/new_log.h"
 #include "./sql_conn/sql_conn.h"
 #include "./LRU/LRU.h"  
 //最大用户数
-const int MAX_FD = 65536;
+const int MAX_FD = 10000;
 //最大事件数
 const int MAX_EVENT_NUMBER = 10000;
 const int TIMESLOT = 5;
@@ -154,7 +156,8 @@ private:
     epoll_event events[MAX_EVENT_NUMBER];//epoll事件数组
 
     //线程池相关
-    my_threadpool<my_http_conn>* m_pool;//线程池
+    //my_threadpool<my_http_conn>* m_pool;//线程池
+    my_thread_pool<my_http_conn>* m_pool;
      //int m_thread_num; 线程数量
     
     client_data * users_timer;//用户定时器和用户数据
@@ -166,7 +169,7 @@ private:
     bool m_timeout; //计时器触发
 
     bool m_stop_server;//循环结束
-
+ 
 
     //日志
     int m_close_log; //是否关闭日志

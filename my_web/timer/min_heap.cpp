@@ -6,7 +6,9 @@
  */
 #include "min_heap.h"
 
+#include "../log/new_log.h"
 
+static Logger::ptr g_logger = MY_LOG_NAME("system");
 
 //时间堆类
 
@@ -124,7 +126,7 @@
         }
         if(array[0])
         {
-            printf("%d\n", cur_size);
+            //printf("%d\n", cur_size);
             delete array[0];
             ////将原来的堆顶元素替换为堆数组中最后一个元素
             array[0] = array[--cur_size];
@@ -155,7 +157,7 @@
                 array[0] -> cb_func(array[0] -> user_data);
             }
             //将堆顶元素删除 同时生成新的堆顶定时器
-            printf("tick() pop\n");
+            //printf("tick() pop\n");
             pop_timer();
             tmp = array[0];
         }

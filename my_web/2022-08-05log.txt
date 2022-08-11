@@ -1,0 +1,34 @@
+2022-08-05 00:10:45	16878	<<error_format %N>>	<<error_format %F>>	[INFO]	[system]	my_web.cpp:226	my_http_conn create over
+2022-08-05 00:10:46	16878	<<error_format %N>>	<<error_format %F>>	[INFO]	[system]	my_web.cpp:206	THE threadpool Created successfully
+2022-08-05 00:10:46	16878	<<error_format %N>>	<<error_format %F>>	[INFO]	[system]	my_web.cpp:281	listen create successful
+2022-08-05 00:10:46	16878	<<error_format %N>>	<<error_format %F>>	[INFO]	[system]	my_web.cpp:297	epoll create successful, listen is in the epoll
+2022-08-05 00:10:51	16878	<<error_format %N>>	<<error_format %F>>	[ERROR]	[system]	my_web.cpp:499	happened SIGALRM
+2022-08-05 00:22:20	17334	[INFO]	[system]	my_web.cpp:226	my_http_conn create over
+2022-08-05 00:22:20	17334	[INFO]	[system]	my_web.cpp:206	THE threadpool Created successfully
+2022-08-05 00:22:20	17334	[INFO]	[system]	my_web.cpp:281	listen create successful
+2022-08-05 00:22:20	17334	[INFO]	[system]	my_web.cpp:297	epoll create successful, listen is in the epoll
+2022-08-05 00:22:25	17334	[ERROR]	[system]	my_web.cpp:499	happened SIGALRM
+2022-08-05 12:54:14	8618	[INFO]	[system]	my_web.cpp:232	my_http_conn create over
+2022-08-05 12:54:15	8618	[INFO]	[system]	my_web.cpp:212	THE threadpool Created successfully
+2022-08-05 12:54:15	8618	[INFO]	[system]	my_web.cpp:287	listen create successful
+2022-08-05 12:54:15	8618	[INFO]	[system]	my_web.cpp:303	epoll create successful, listen is in the epoll
+2022-08-05 12:58:53	8755	[INFO]	[system]	my_web.cpp:232	my_http_conn create over
+2022-08-05 12:58:53	8755	[INFO]	[system]	my_web.cpp:212	THE threadpool Created successfully
+2022-08-05 12:58:53	8755	[INFO]	[system]	my_web.cpp:287	listen create successful
+2022-08-05 12:58:53	8755	[INFO]	[system]	my_web.cpp:303	epoll create successful, listen is in the epoll
+2022-08-05 12:58:58	8755	[INFO]	[system]	my_web.cpp:61	sig == SIGALRM = 14
+2022-08-05 12:58:58	8755	[ERROR]	[system]	my_web.cpp:505	happened SIGALRM
+2022-08-05 12:58:58	8755	[INFO]	[system]	my_web.cpp:116	tick()
+2022-08-05 13:05:30	8834	[INFO]	[system]	my_web.cpp:232	my_http_conn create over
+2022-08-05 13:05:30	8834	[INFO]	[system]	my_web.cpp:212	THE threadpool Created successfully
+2022-08-05 13:05:30	8834	[INFO]	[system]	my_web.cpp:287	listen create successful
+2022-08-05 13:05:30	8834	[INFO]	[system]	my_web.cpp:303	epoll create successful, listen is in the epoll
+2022-08-05 13:05:35	8834	[INFO]	[system]	my_web.cpp:61	sig == SIGALRM = 14
+2022-08-05 13:05:35	8834	[ERROR]	[system]	my_web.cpp:505	happened SIGALRM
+2022-08-05 13:05:35	8834	[INFO]	[system]	my_web.cpp:116	tick()
+2022-08-05 13:05:40	8834	[INFO]	[system]	my_web.cpp:61	sig == SIGALRM = 14
+2022-08-05 13:05:40	8834	[ERROR]	[system]	my_web.cpp:505	happened SIGALRM
+2022-08-05 13:05:40	8834	[INFO]	[system]	my_web.cpp:116	tick()
+2022-08-05 13:05:45	8834	[INFO]	[system]	my_web.cpp:61	sig == SIGALRM = 14
+2022-08-05 13:05:45	8834	[ERROR]	[system]	my_web.cpp:505	happened SIGALRM
+2022-08-05 13:05:45	8834	[INFO]	[system]	my_web.cpp:116	tick()

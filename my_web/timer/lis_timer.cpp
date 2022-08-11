@@ -5,6 +5,9 @@
  * @FilePath: /data/my_web/timer/lis_timer.cpp
  */
 #include "lis_timer.h"
+#include "../log/new_log.h"
+
+static Logger::ptr g_logger = MY_LOG_NAME("system");
  sort_timer_lst::sort_timer_lst()
  {
       head = NULL;
@@ -130,7 +133,7 @@ void sort_timer_lst::tick()
         return;
     }
 
-    printf("timer tick\n");
+    //printf("timer tick\n");
     time_t cur = time(NULL); //获取当前系统时间
     util_timer* tmp = head;
     //遍历处理每个定时器, 值到一个未到时间的定时器

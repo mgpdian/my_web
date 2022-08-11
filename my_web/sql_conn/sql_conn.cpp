@@ -14,7 +14,9 @@
 #include <iostream>
 #include "sql_conn.h"
 
-using namespace std;
+#include "../log/new_log.h"
+
+static Logger::ptr g_logger = MY_LOG_NAME("system");
 
 
 //默认构造函数
@@ -38,7 +40,7 @@ connection_pool *connection_pool::GetInstance()
 }
 
 //构造初始化  初始化 数据库的基本信息，后面可以使用这些基本信息来链接linux中已有的数据库
-void connection_pool::init(string url, string User, string PassWord, string DBName, int Port, int MaxConn, int close_log)
+void connection_pool::init(std::string url, std::string User, std::string PassWord, std::string DBName, int Port, int MaxConn, int close_log)
 {
     m_url = url; //主机名或IP地址
     m_Port = Port; //端口号
@@ -57,7 +59,8 @@ void connection_pool::init(string url, string User, string PassWord, string DBNa
                                 //也就是初始化一个连接句柄
         if(con == NULL)
         {
-            LOG_ERROR("MYSQL  ERROR");
+            //LOG_ERROR("MYSQL  ERROR");
+            MY_LOG_ERROR(g_logger) << "MYSQL  ERROR";
             exit(1);
         }
         //连接数据库?
@@ -72,7 +75,8 @@ void connection_pool::init(string url, string User, string PassWord, string DBNa
         //mysql_query(con, "SET NAMES GB2312");
         if(con == NULL)
         {
-            LOG_ERROR("MySql Error");
+            //LOG_ERROR("MySql Error");
+            MY_LOG_ERROR(g_logger) << "MySql Error";
             exit(1);
         }
         connList.push_back(con);    //将连接成功的con放入连接池
@@ -98,16 +102,20 @@ MYSQL *connection_pool::GetConnection()
 
     //如果有空闲的连接 要加锁
     reserve.wait(); //这是信号锁
-    lock.lock();    //这是互斥锁
+    //lock.lock();    //这是互斥锁
+    {
+        std::unique_lock<MutexType> lock(the_mutex);
 
-    con = connList.front();//从池中取出连接
-    connList.pop_front();
+        con = connList.front();//从池中取出连接
+        connList.pop_front();
 
-    --m_FreeConn;  //空闲连接减1
-    ++m_CurConn; //忙碌连接++
+        --m_FreeConn;  //空闲连接减1
+        ++m_CurConn; //忙碌连接++
+    }
+    
 
 
-    lock.unlock();
+    //lock.unlock();
     return con;
 }
 
@@ -120,13 +128,16 @@ bool connection_pool :: ReleaseConnection( MYSQL *con)
         return false;
     }
 
-    lock.lock();    //上锁防止其他线程释放
+   //lock.lock();    //上锁防止其他线程释放
+    {
+        std::unique_lock<MutexType> lock(the_mutex);
+        connList.push_back(con);//将空闲连接返回到池中
+        ++m_FreeConn;
+        --m_CurConn;
+    }
+    
 
-    connList.push_back(con);//将空闲连接返回到池中
-    ++m_FreeConn;
-    --m_CurConn;
-
-    lock.unlock();
+    //lock.unlock();
 
     reserve.post(); //信号量加一
     return true;
@@ -137,20 +148,22 @@ bool connection_pool :: ReleaseConnection( MYSQL *con)
 //销毁数据库连接池
 void connection_pool::DestroyPool()
 {
-    lock.lock();
-    if(connList.size() > 0)
+    //lock.lock();
     {
-        list<MYSQL *>::iterator it;
-        for(it = connList.begin(); it != connList.end(); ++it)
-        {
-            MYSQL *con = *it;
-            mysql_close(con); //关闭连接
+        std::unique_lock<MutexType> lock(the_mutex);
+        if (connList.size() > 0) {
+            std::list<MYSQL *>::iterator it;
+            for (it = connList.begin(); it != connList.end(); ++it) {
+                MYSQL *con = *it;
+                mysql_close(con);  //关闭连接
+            }
+            m_CurConn = 0;
+            m_FreeConn = 0;
+            connList.clear();  //将list的长度清除
         }
-        m_CurConn = 0;
-        m_FreeConn = 0;
-        connList.clear(); //将list的长度清除
     }
-    lock.unlock();
+
+    //lock.unlock();
 }
 
 //当前空闲的连接数

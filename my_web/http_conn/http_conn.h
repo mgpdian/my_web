@@ -28,18 +28,22 @@
 #include <sys/wait.h>
 #include <sys/uio.h>
 #include <map>
+#include <shared_mutex>
+#include <mutex>
 
-#include "../log/log.h"
+
+//#include "../log/log.h"
 //#include "../timer/lis_timer.h"
 #include "../timer/min_heap.h"
 #include "../strdecode/strdecode.h"
 #include "../sql_conn/sql_conn.h"
-#include "../locker/locker.h"
+//#include "../locker/locker.h"
 #include "../LRU/LRU.h"
 
 //http状态分析类
 class my_http_conn
 {
+    typedef std::shared_mutex MutexType;
 public:
     //限定:文件名的最大长度
     static const int MAX_FILENAME_LENGTH = 200;
@@ -269,14 +273,14 @@ private:
     int m_is_post;  //是否为POST请求
     char *m_resquest_data;//返回的数据
 
-    map<string, string> m_users;
+    std::map<string, string> m_users;
     char sql_user[100];  //数据库用户名
     char sql_passwd[100];//数据库密码
     char sql_name[100];//数据库名字?
 
     //互斥锁
-    my_locker m_locker;
-
+    //my_locker m_locker;
+     MutexType the_mutex;
 
     //日志设置
     int m_close_log;

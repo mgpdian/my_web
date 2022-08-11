@@ -7,9 +7,10 @@
 //主函数运行
 
 #include "my_web.h"
-  
+   
 #include <sys/param.h> 
- 
+ #include <sys/types.h>
+#include <sys/stat.h>
 int main(int argc, char* argv[])
 {
     if(argc <= 1)
@@ -59,7 +60,7 @@ int main(int argc, char* argv[])
     // //关闭所有从父进程继承的不再需要的文件描述符
 	// for(int i=0;i< NOFILE;close(i++));
  
- 
+
     //初始化设置 
     my_web webserver;
  
@@ -79,7 +80,7 @@ int main(int argc, char* argv[])
     printf("初始化连接池\n");   
     webserver.create_mysqlpool();
  
-       
+        
     //初始化线程池 
     printf("初始化线程池\n");
     webserver.create_threadpool();  

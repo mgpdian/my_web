@@ -16,7 +16,11 @@
 //使用线程池实现的web服务
 
 #include "my_web.h"
+#include "./log/new_log.h"
 
+
+
+static Logger::ptr g_logger = MY_LOG_NAME("system");
 //释放空间
 my_web::~my_web()
 {
@@ -37,7 +41,7 @@ void my_web::init(int port, string user, string passWord, string databaseName, i
     m_user = user;
     m_passWord = passWord;
     m_databaseName = databaseName;
-    m_close_log = 0;
+    m_close_log = close_log;
     m_log_write = 0;
     m_sql_num = sql_num;
     m_actor_model = actor_model;
@@ -54,15 +58,18 @@ void sig_handler(int sig)
     int msg = sig;
     if (msg == SIGALRM) 
     {
-        printf("sig == SIGALRM = %d\n", msg);
+        //printf("sig == SIGALRM = %d\n", msg);
+        MY_LOG_INFO(g_logger) << "sig == SIGALRM = " << msg;
     }
     else if (msg == SIGTERM)
     {
-        printf("sig == SIGTERM = %d\n", msg);
+        //printf("sig == SIGTERM = %d\n", msg);
+        MY_LOG_INFO(g_logger) << "sig == SIGTERM = " << msg;
     }
     else
     {
-        printf("sig == %d", msg);
+        //printf("sig == %d", msg);
+        MY_LOG_INFO(g_logger) << "another sig = " << msg;
     }
 
     send(m_pipefd[1], (char *)&msg, 1, 0);
@@ -106,13 +113,14 @@ void my_web::time_handler()
     // alarm(TIMESLOT);
 
     m_time_heap.tick();
-    printf("tick()\n");
+    //printf("tick()\n");
+    MY_LOG_INFO(g_logger) << "tick()";
     if (!m_time_heap.empty())
     {
        // m_time_heap.pop_timer();
         heap_timer *heap = m_time_heap.top();
         alarm(heap->expire);
-        printf("wwww\n");
+        //printf("wwww\n");
     }
     else{
        alarm(TIMESLOT); 
@@ -128,8 +136,9 @@ void cb_func(client_data *user_data)
     assert(user_data);
     close(user_data->sockfd);
     my_http_conn::m_client_number--;
-    printf("close fd %d\n", user_data->sockfd);
-    LOG_INFO("fd==[%d] closed by time cb_func \n", user_data->sockfd);
+    //printf("close fd %d\n", user_data->sockfd);
+    //LOG_INFO("fd==[%d] closed by time cb_func \n", user_data->sockfd);
+    MY_LOG_INFO(g_logger) << "fd==[" << user_data->sockfd << "] closed by time cb_func";
 }
 //若有数据传输 将定时器延后3个单位
 // void adjust_timer(util_timer* timer)
@@ -152,7 +161,9 @@ void cb_func(client_data *user_data)
 void my_web::send_error(int connfd, const char *to_error)
 {
     //打印下错误
-    printf("%s", to_error);
+    //printf("%s", to_error);
+    MY_LOG_ERROR(g_logger) << "error: " << to_error;
+
     size_t len = strlen(to_error);
     send(connfd, to_error, len, 0);
     //报错后关闭和客户端的连接
@@ -166,14 +177,15 @@ void my_web::log_write()
     if (0 == m_close_log)
     {
 
-        if (1 == m_log_write)
-        {
-            Log::get_instance()->init("./ServerLog", m_close_log, 2000, 800000, 800);
-        }
-        else
-        {
-            Log::get_instance()->init("./ServerLog", m_close_log, 2000, 800000, 0);
-        }
+        // if (1 == m_log_write)
+        // {
+        //     Log::get_instance()->init("./ServerLog", m_close_log, 2000, 800000, 800);
+        // }
+        // else
+        // {
+        //     Log::get_instance()->init("./ServerLog", m_close_log, 2000, 800000, 0);
+        // }
+        setFileLogAppender();
     }
 }
 //初始化连接池
@@ -195,14 +207,17 @@ bool my_web::create_threadpool()
     //单例初始化去要指向null
     try
     {
-        m_pool = new my_threadpool<my_http_conn>(m_connPool, m_actor_model);
-        LOG_INFO("THE threadpool Created successfully\n");
+        //m_pool = new my_threadpool<my_http_conn>(m_connPool, m_actor_model);
+        m_pool = new my_thread_pool<my_http_conn>(m_connPool, m_actor_model);
+        //LOG_INFO("THE threadpool Created successfully\n");
+        MY_LOG_INFO(g_logger) << "THE threadpool Created successfully";
     }
 
-    catch (const std::exception &e)
+    catch (const std::exception  &e)
     {
-        printf("the pthread_pool stop");
-        LOG_ERROR("THE threadpool error\n");
+        //printf("the pthread_pool stop");
+        //LOG_ERROR("THE threadpool error\n");
+        MY_LOG_INFO(g_logger) << "THE threadpool error";
         return false;
     }
     return true;
@@ -213,8 +228,10 @@ void my_web::create_http_conn()
 {
     //预先准备好客户连接分配的http_conn
     users = new my_http_conn[MAX_FD];
+    users_timer = new client_data[MAX_FD];
     assert(users);
-    LOG_INFO("my_http_conn create over\n");
+    //LOG_INFO("my_http_conn create over\n");
+    MY_LOG_INFO(g_logger) << "my_http_conn create over";
 }
 
 //创建监听文件描述符
@@ -268,7 +285,8 @@ void my_web::create_listen()
     ret = listen(m_listenfd, 5);
     assert(ret != -1);
 
-    LOG_INFO("listen create successful\n");
+    //LOG_INFO("listen create successful\n");
+    MY_LOG_INFO(g_logger) << "listen create successful";
  }
 
 //创建epoll树并将m_listen上树
@@ -283,7 +301,8 @@ void my_web::create_epoll()
     epoll_addfd(m_epollfd, m_listenfd, false, m_trig_model);
 
     my_http_conn::m_epollfd = m_epollfd;
-    LOG_INFO("epoll create successful, listen is in the epoll\n");
+    //LOG_INFO("epoll create successful, listen is in the epoll\n");
+    MY_LOG_INFO(g_logger) << "epoll create successful, listen is in the epoll";
 }
 
 //创建定时器
@@ -324,6 +343,8 @@ void my_web::client_init(int connfd, struct sockaddr_in client_address)
     //并上树
     users[connfd].init(connfd, client_address, m_trig_model, m_close_log);
 
+
+    MY_LOG_INFO(g_logger) << "g_logger" ;
     //将客户的数据放入定时器
     users_timer[connfd].address = client_address;
     users_timer[connfd].sockfd = connfd;
@@ -339,7 +360,8 @@ void my_web::client_init(int connfd, struct sockaddr_in client_address)
 
     // m_timer_lst.add_timer(timer);
     m_time_heap.add_timer(timer);
-    printf("users_timers\n");
+    //printf("users_timers\n");
+    MY_LOG_INFO(g_logger) << "users_timers";
 }
 
 //若用户被使用 比如读或写 则更新定时器
@@ -360,9 +382,9 @@ void my_web::adjust_timer(heap_timer *timer)
    // m_time_heap.del_timer(timer);
     m_time_heap.add_timer(timer);
 
-    LOG_INFO("%s", "adjust timer");
-
-    printf("adjust timer by read!\n");
+    //LOG_INFO("%s", "adjust timer");
+    MY_LOG_INFO(g_logger) << "adjust timer";
+    //printf("adjust timer by read!\n");
 }
 //若用户断开连接 则将定时器删除
 // void my_web::deal_timer(util_timer *timer, int sockfd)
@@ -384,7 +406,8 @@ void my_web::deal_timer(heap_timer *timer, int sockfd)
     //断开连接
     // users[sockfd].close_conn();
     // util_timer *timer = users[sockfd].get_timer();
-    LOG_ERROR(" happened error\n");
+    //LOG_ERROR(" happened error\n");
+    MY_LOG_INFO(g_logger) << "deal_timer";
     timer->cb_func(&users_timer[sockfd]);
     if (timer)
     {
@@ -400,22 +423,26 @@ bool my_web::accept_client()
     struct sockaddr_in client_address;
     socklen_t client_addrlength = sizeof(client_address);
     int connfd;
-    printf("new client\n");
+    //printf("new client\n");
+    MY_LOG_INFO(g_logger) << "new client";
     if (m_trig_model == 1)
     {
         while (1)
         {
             connfd = accept(m_listenfd, (struct sockaddr *)&client_address, &client_addrlength);
-            LOG_DEBUG("create new connfd fd==[%d]\n", connfd);
+            //LOG_DEBUG("create new connfd fd==[%d]\n", connfd);
+            MY_LOG_INFO(g_logger) << "create new connfd fd==[" << connfd << "]";
             if (connfd <= 0)
             {
-                LOG_DEBUG("error is %d\n", errno);
+                //LOG_DEBUG("error is %d\n", errno);
+                MY_LOG_ERROR(g_logger) << "error is " << errno;
                 break;
             }
             if (my_http_conn::m_client_number >= MAX_FD)
             {
                 send_error(connfd, "Internet server busy");
-                LOG_ERROR("%s", "Internal sever busy");
+                //LOG_ERROR("%s", "Internal sever busy");
+                MY_LOG_ERROR(g_logger) << "Internal sever busy" << errno;
                 break;
             }
             client_init(connfd, client_address);
@@ -425,16 +452,19 @@ bool my_web::accept_client()
     else
     {
         connfd = accept(m_listenfd, (struct sockaddr *)&client_address, &client_addrlength);
-        LOG_DEBUG("create new connfd fd==[%d]\n", connfd);
+        //LOG_DEBUG("create new connfd fd==[%d]\n", connfd);
+        MY_LOG_INFO(g_logger) << "create new connfd fd==[" << connfd << "]";
         if (connfd <= 0)
         {
-            LOG_DEBUG("error is %d\n", errno);
+            //LOG_DEBUG("error is %d\n", errno);
+            MY_LOG_ERROR(g_logger) << "error is " << errno;
             return false;
         }
         if (my_http_conn::m_client_number >= MAX_FD)
         {
             send_error(connfd, "Internet server busy");
-            LOG_ERROR("%s", "Internal sever busy");
+            //LOG_ERROR("%s", "Internal sever busy");
+            MY_LOG_ERROR(g_logger) << "Internal sever busy" << errno;
             return false;
         }
         client_init(connfd, client_address);
@@ -452,35 +482,40 @@ bool my_web::time_siganl()
 
     if (ret == -1)
     {
-        LOG_ERROR("从管道中接受信号失败,接受失败,failed to accept signal from pipeline, failed to accept!!\n");
+        //LOG_ERROR("从管道中接受信号失败,接受失败,failed to accept signal from pipeline, failed to accept!!\n");
+        MY_LOG_ERROR(g_logger) << "failed to accept signal from pipeline, failed to accept!!";
         return false;
     }
     else if (ret == 0)
     {
-        LOG_ERROR("failed to receive signal from pipeline, no data in pipeline! \n");
+        //LOG_ERROR("failed to receive signal from pipeline, no data in pipeline! \n");
+        MY_LOG_ERROR(g_logger) << "failed to receive signal from pipeline, no data in pipeline!";
+        
         return false;
     }
     else
     {
         for (int i = 0; i < ret; ++i)
         {
-            printf("siganls[%d] is %d go\n", i, signals[i]);
+            //printf("siganls[%d] is %d go\n", i, signals[i]);
             switch (signals[i])
             {
             case SIGALRM:
             {
                 //用timeout变量标记有定时任务需要处理 但不立即处理定时任务,
                 //因为定时任务优先级不高, 优先处理其他更重要的任务
-                printf("happened SIGALRM\n");
-                LOG_ERROR("happened SIGALRM\n");
+                //printf("happened SIGALRM\n");
+                //LOG_ERROR("happened SIGALRM\n");
+                MY_LOG_ERROR(g_logger) << "happened SIGALRM";
                 m_timeout = true;
                 break;
             }
 
             case SIGTERM:
             {
-                printf("happened SIGTERM\n");
-                LOG_ERROR("happened SIGTERM\n");
+                //printf("happened SIGTERM\n");
+                //LOG_ERROR("happened SIGTERM\n");
+                MY_LOG_ERROR(g_logger) << "happened SIGTERM";
                 m_stop_server = true;
                 break;
             }
@@ -495,12 +530,12 @@ void my_web::read_thing(int sockfd)
     //读取客户发送来的数据
     //若对于0 则将任务分给请求队列
     //请求队列再发给子线程处理
-    LOG_INFO("epollin事件:\n")
-    LOG_DEBUG("read_thing\n");
-
+    //LOG_INFO("epollin事件:\n")
+    //LOG_DEBUG("read_thing\n");
+    MY_LOG_INFO(g_logger) << "epoll in :";
     // util_timer *user_hav_timer = users_timer[sockfd].timer;
     heap_timer *user_hav_timer = users_timer[sockfd].timer;
-    printf("read now\n");
+    //printf("read now\n");
 
     //通过m_actor_model 决定Reactor 0和 proactor 1
     if (m_actor_model == 0)
@@ -552,10 +587,11 @@ void my_web::read_thing(int sockfd)
 //写事件
 void my_web::write_thing(int sockfd)
 {
-    LOG_DEBUG("write_thing\n");
+    //LOG_DEBUG("write_thing\n");
+    MY_LOG_INFO(g_logger) << "write_thing";
     // util_timer *user_hav_timer = users_timer[sockfd].timer;
     heap_timer *user_hav_timer = users_timer[sockfd].timer;
-    printf("write now\n");
+   // printf("write now\n");
     // reactor 和 proactor
     if (m_actor_model == 0)
     {
@@ -590,20 +626,20 @@ void my_web::write_thing(int sockfd)
         {
             // adjust_timer(user_hav_timer);
             adjust_timer(user_hav_timer);
-            printf("adjust timer by write if before!\n");
+            //printf("adjust timer by write if before!\n");
+            MY_LOG_INFO(g_logger) << "adjust timer by write if before!";
         }
         //根据写的结果 决定是否关闭
         if (users[sockfd].write())
         {
             printf("write\n");
-            LOG_DEBUG("write\n");
-            // users[sockfd].close_conn();
-
+            
             if (user_hav_timer)
             {
                 // adjust_timer(user_hav_timer);
                 adjust_timer(user_hav_timer);
-                printf("adjust timer by write! after\n");
+                //printf("adjust timer by write! after\n");
+                MY_LOG_INFO(g_logger) << "adjust timer by write! after";
             }
         }
         else
@@ -626,16 +662,16 @@ void my_web::main_loop()
 
     m_timeout = false;
     m_stop_server = false;
-    printf("will being\n");
+    //printf("will being\n");
     //开始监听
     while (!m_stop_server)
     {
-        LOG_DEBUG("main_loop!\n");
+        //LOG_DEBUG("main_loop!\n");
         int number = epoll_wait(m_epollfd, events, MAX_EVENT_NUMBER, -1);
-        printf("epoll\n");
+       // printf("epoll\n");
         if ((number < 0) && (errno != EINTR))
         {
-            printf("epoll failure!\n");
+           // printf("epoll failure!\n");
             break;
         }
         for (int i = 0; i < number; ++i)
@@ -654,25 +690,30 @@ void my_web::main_loop()
             else if (events[i].events & (EPOLLERR | EPOLLRDHUP | EPOLLHUP))
             {
                 //有异常关闭客户端
-                LOG_INFO("fd = [%d] have a errno", sockfd);
+                //LOG_INFO("fd = [%d] have a errno", sockfd);
+                MY_LOG_INFO(g_logger) << "fd = [" << sockfd << "] have a errno";
                 if (events[i].events & EPOLLRDHUP)
                 {
-                    LOG_INFO("EPOLLRDHUP happened");
-                    printf("---------EPOLLRDHUP--------");
+                    //LOG_INFO("EPOLLRDHUP happened");
+                    //printf("---------EPOLLRDHUP--------");
+                    MY_LOG_ERROR(g_logger) << "EPOLLRDHUP happened";
                 }
                 if (events[i].events & EPOLLHUP)
                 {
-                    LOG_INFO("EPOLLHUP happened");
-                    printf("---------EPOLLHUP--------");
+                    //LOG_INFO("EPOLLHUP happened");
+                    //printf("---------EPOLLHUP--------");
+                    MY_LOG_ERROR(g_logger) << "EPOLLHUP happened";
                 }
                 if (events[i].events & EPOLLERR)
                 {
-                    LOG_INFO("EPOLLERR happened");
-                    printf("---------EPOLLERR--------");
+                    //LOG_INFO("EPOLLERR happened");
+                    //printf("---------EPOLLERR--------");
+                    MY_LOG_ERROR(g_logger) << "EPOLLERR happened";
                 }
-                printf("accpt error! and close fd \n");
-                printf("have errno\n");
-                LOG_INFO("\n");
+                //printf("accpt error! and close fd \n");
+                //printf("have errno\n");
+                //LOG_INFO("\n");
+                
                 // util_timer *user_hav_timer = users_timer[sockfd].timer;
                 heap_timer *user_hav_timer = users_timer[sockfd].timer;
                 deal_timer(user_hav_timer, sockfd);
@@ -701,7 +742,7 @@ void my_web::main_loop()
             //比如定时器
             //比如自身的信号
         }
-        printf("timeout is %d\n", m_timeout);
+        //printf("timeout is %d\n", m_timeout);
         if (m_timeout)
         {
             time_handler();
